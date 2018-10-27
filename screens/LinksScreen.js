@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { TextInput } from 'react-native';
+import { TextInput, TouchableOpacity } from 'react-native';
 import firebase from 'firebase';
 require("firebase/firestore");
 
@@ -9,10 +9,6 @@ export default class ListThumbnailExample extends Component {
       super(props);
       this.state = {
         cards: [
-            {'question': 'This is question 1', 'answer': 'This is answer 1'},
-            {'question': 'This is question 2', 'answer': 'This is answer 2'},
-            {'question': 'This is question 3', 'answer': 'This is answer 3'},
-            {'question': 'This is question 4', 'answer': 'This is answer 4'}
             ],question: '', answer: ''
       };
           this.db = firebase.firestore();
@@ -25,8 +21,10 @@ export default class ListThumbnailExample extends Component {
               .onSnapshot((querySnapshot) => {
                   var cities = [];
                   querySnapshot.forEach((doc) => {
-                      cities.push(doc.data());
-                  });
+                      const temp = doc.data()
+                      temp['id'] = doc.id
+                      cities.push(temp);
+                  })
                   this.setState({ cards: cities })
 
               });
@@ -38,7 +36,16 @@ export default class ListThumbnailExample extends Component {
           answer: this.state.answer
       })
       this.setState({ question: '', answer: '' })
+  }
 
+  _onPressButton = (id) => {
+    console.log(id)
+
+      this.db.collection("Cards").doc(id).delete().then(function() {
+          console.log("Document successfully deleted!");
+      }).catch(function(error) {
+          console.error("Error removing document: ", error);
+      });
   }
 
 
@@ -79,6 +86,15 @@ export default class ListThumbnailExample extends Component {
                                 <Text>{i.question}</Text>
                                 <Text note numberOfLines={1}>{i.answer}</Text>
                                 </Body>
+
+                                <Right>
+                                    <TouchableOpacity onPress={() => this._onPressButton(i.id)}>
+                                    <Text style={{ color: 'red'}}>
+                                        Delete
+                                    </Text>
+
+                                    </TouchableOpacity>
+                                </Right>
                             </ListItem>
                         )}
                     </List>

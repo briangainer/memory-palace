@@ -1,188 +1,281 @@
 import React from 'react';
-import {
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { WebBrowser } from 'expo';
+import { AR } from 'expo';
+import { View } from 'react-native'
+import { Button, Text} from 'native-base'
+// Let's alias ExpoTHREE.AR as ThreeAR so it doesn't collide with Expo.AR.
+import ExpoTHREE, { AR as ThreeAR, THREE } from 'expo-three';
+// Let's also import `expo-graphics`
+// expo-graphics manages the setup/teardown of the gl context/ar session, creates a frame-loop, and observes size/orientation changes.
+// it also provides debug information with `isArCameraStateEnabled`
+import { View as GraphicsView } from 'expo-graphics';
+import firebase from 'firebase';
+require("firebase/firestore");
 
-import { MonoText } from '../components/StyledText';
+export default class App extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            cards: [
+            ]
+        };
+        this.db = firebase.firestore();
 
-export default class HomeScreen extends React.Component {
-  static navigationOptions = {
-    header: null,
-  };
+        this.db.settings({
+            timestampsInSnapshots: true
+        });
 
-  render() {
-    return (
-      <View style={styles.container}>
-        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-          <View style={styles.welcomeContainer}>
-            <Image
-              source={
-                __DEV__
-                  ? require('../assets/images/robot-dev.png')
-                  : require('../assets/images/robot-prod.png')
-              }
-              style={styles.welcomeImage}
-            />
-          </View>
+        this.db.collection("Cards")
+            .onSnapshot((querySnapshot) => {
+                var cities = [];
+                querySnapshot.forEach((doc) => {
+                    const temp = doc.data()
+                    temp['id'] = doc.id
+                    cities.push(temp);
+                })
+                this.setState({ cards: cities })
 
-          <View style={styles.getStartedContainer}>
-            {this._maybeRenderDevelopmentModeWarning()}
-
-            <Text style={styles.getStartedText}>Get started by opening</Text>
-
-            <View style={[styles.codeHighlightContainer, styles.homeScreenFilename]}>
-              <MonoText style={styles.codeHighlightText}>screens/HomeScreen.js</MonoText>
-            </View>
-
-            <Text style={styles.getStartedText}>
-              Change this text and your app will automatically reload.
-            </Text>
-          </View>
-
-          <View style={styles.helpContainer}>
-            <TouchableOpacity onPress={this._handleHelpPress} style={styles.helpLink}>
-              <Text style={styles.helpLinkText}>Help, it didn’t automatically reload!</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-
-        <View style={styles.tabBarInfoContainer}>
-          <Text style={styles.tabBarInfoText}>This is a tab bar. You can edit it in:</Text>
-
-          <View style={[styles.codeHighlightContainer, styles.navigationFilename]}>
-            <MonoText style={styles.codeHighlightText}>navigation/MainTabNavigator.js</MonoText>
-          </View>
-        </View>
-      </View>
-    );
-  }
-
-  _maybeRenderDevelopmentModeWarning() {
-    if (__DEV__) {
-      const learnMoreButton = (
-        <Text onPress={this._handleLearnMorePress} style={styles.helpLinkText}>
-          Learn more
-        </Text>
-      );
-
-      return (
-        <Text style={styles.developmentModeText}>
-          Development mode is enabled, your app will be slower but you can use useful development
-          tools. {learnMoreButton}
-        </Text>
-      );
-    } else {
-      return (
-        <Text style={styles.developmentModeText}>
-          You are not in development mode, your app will run at full speed.
-        </Text>
-      );
+            });
     }
-  }
 
-  _handleLearnMorePress = () => {
-    WebBrowser.openBrowserAsync('https://docs.expo.io/versions/latest/guides/development-mode');
-  };
 
-  _handleHelpPress = () => {
-    WebBrowser.openBrowserAsync(
-      'https://docs.expo.io/versions/latest/guides/up-and-running.html#can-t-see-your-changes'
-    );
-  };
+    componentDidMount() {
+        // Turn off extra warnings
+        THREE.suppressExpoWarnings()
+    }
+
+    render() {
+        // You need to add the `isArEnabled` & `arTrackingConfiguration` props.
+        // `isArRunningStateEnabled` Will show us the play/pause button in the corner.
+        // `isArCameraStateEnabled` Will render the camera tracking information on the screen.
+        // `arTrackingConfiguration` denotes which camera the AR Session will use.
+        // World for rear, Face for front (iPhone X only)
+        return (
+            <View style={{ flex: 1 }}>
+            <GraphicsView
+                style={{ flex: 1 }}
+                onContextCreate={this.onContextCreate}
+                onRender={this.onRender}
+                onResize={this.onResize}
+                isArEnabled
+                isArRunningStateEnabled
+                isArCameraStateEnabled
+                arTrackingConfiguration={AR.TrackingConfigurations.World}
+            />
+                <Button onPress={this.placeCard}>
+                    <Text>
+                        Place Card
+                    </Text>
+                </Button>
+            </View>
+        );
+    }
+
+    placeCard = () => {
+        const font = new THREE.Font( require( "../assets/helvetiker_regular.typeface.json" ) );
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const textGeometry = new THREE.TextGeometry('djhkdcjhwkcjhwe jkbdwkjb', {
+            font: font,
+            size: 0.01,
+            height: 0.001
+        });
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        const pos = this.camera.getWorldPosition()
+
+        textMesh.position.set(pos.x, pos.y, pos.z)
+        this.scene.add(textMesh)
+    }
+
+    // When our context is built we can start coding 3D things.
+    onContextCreate = async ({ gl, scale: pixelRatio, width, height }) => {
+        // This will allow ARKit to collect Horizontal surfaces
+        AR.setPlaneDetection(AR.PlaneDetectionTypes.Horizontal);
+
+        // Create a 3D renderer
+        this.renderer = new ExpoTHREE.Renderer({
+            gl,
+            pixelRatio,
+            width,
+            height,
+        });
+
+        // We will add all of our meshes to this scene.
+        this.scene = new THREE.Scene();
+        // This will create a camera texture and use it as the background for our scene
+        this.scene.background = new ThreeAR.BackgroundTexture(this.renderer);
+        // Now we make a camera that matches the device orientation.
+        // Ex: When we look down this camera will rotate to look down too!
+        this.camera = new ThreeAR.Camera(width, height, 0.01, 1000);
+        // Make a cube - notice that each unit is 1 meter in real life, we will make our box 0.1 meters
+        // Setup a light so we can see the cube color
+        // AmbientLight colors all things in the scene equally.
+        this.scene.add(new THREE.AmbientLight(0xffffff));
+
+
+    };
+
+    // When the phone rotates, or the view changes size, this method will be called.
+    onResize = ({ x, y, scale, width, height }) => {
+        // Let's stop the function if we haven't setup our scene yet
+        if (!this.renderer) {
+            return;
+        }
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setPixelRatio(scale);
+        this.renderer.setSize(width, height);
+    };
+
+    // Called every frame.
+    onRender = () => {
+        // Finally render the scene with the AR Camera
+        this.renderer.render(this.scene, this.camera);
+    };
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  developmentModeText: {
-    marginBottom: 20,
-    color: 'rgba(0,0,0,0.4)',
-    fontSize: 14,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  contentContainer: {
-    paddingTop: 30,
-  },
-  welcomeContainer: {
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  welcomeImage: {
-    width: 100,
-    height: 80,
-    resizeMode: 'contain',
-    marginTop: 3,
-    marginLeft: -10,
-  },
-  getStartedContainer: {
-    alignItems: 'center',
-    marginHorizontal: 50,
-  },
-  homeScreenFilename: {
-    marginVertical: 7,
-  },
-  codeHighlightText: {
-    color: 'rgba(96,100,109, 0.8)',
-  },
-  codeHighlightContainer: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 3,
-    paddingHorizontal: 4,
-  },
-  getStartedText: {
-    fontSize: 17,
-    color: 'rgba(96,100,109, 1)',
-    lineHeight: 24,
-    textAlign: 'center',
-  },
-  tabBarInfoContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    ...Platform.select({
-      ios: {
-        shadowColor: 'black',
-        shadowOffset: { height: -3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 20,
-      },
-    }),
-    alignItems: 'center',
-    backgroundColor: '#fbfbfb',
-    paddingVertical: 20,
-  },
-  tabBarInfoText: {
-    fontSize: 17,
-    color: 'rgba(96,100,109, 1)',
-    textAlign: 'center',
-  },
-  navigationFilename: {
-    marginTop: 5,
-  },
-  helpContainer: {
-    marginTop: 15,
-    alignItems: 'center',
-  },
-  helpLink: {
-    paddingVertical: 15,
-  },
-  helpLinkText: {
-    fontSize: 14,
-    color: '#2e78b7',
-  },
-});
+
+
+/*
+import React from 'react';
+import { AR } from 'expo';
+import { View } from 'react-native'
+import { Button, Text } from 'native-base'
+// Let's alias ExpoTHREE.AR as ThreeAR so it doesn't collide with Expo.AR.
+import ExpoTHREE, { AR as ThreeAR, THREE } from 'expo-three';
+// Let's also import `expo-graphics`
+// expo-graphics manages the setup/teardown of the gl context/ar session, creates a frame-loop, and observes size/orientation changes.
+// it also provides debug information with `isArCameraStateEnabled`
+import { View as GraphicsView } from 'expo-graphics';
+
+export default class App extends React.Component {
+    componentDidMount() {
+        // Turn off extra warnings
+        THREE.suppressExpoWarnings()
+    }
+
+    render() {
+        // You need to add the `isArEnabled` & `arTrackingConfiguration` props.
+        // `isArRunningStateEnabled` Will show us the play/pause button in the corner.
+        // `isArCameraStateEnabled` Will render the camera tracking information on the screen.
+        // `arTrackingConfiguration` denotes which camera the AR Session will use.
+        // World for rear, Face for front (iPhone X only)
+        return (
+            <View style={{ flex: 1 }}>
+
+                <GraphicsView
+                    style={{ flex: 1 }}
+                    onContextCreate={this.onContextCreate}
+                    onRender={this.onRender}
+                    onResize={this.onResize}
+                    isArEnabled
+                    isArRunningStateEnabled
+                    isArCameraStateEnabled
+                    arTrackingConfiguration={AR.TrackingConfigurations.World}
+                />
+                <Button onPress={this.placeQuestion}>
+                    <Text>Click Me!</Text>
+                </Button>
+            </View>
+        );
+    }
+
+    placeQuestion = () => {
+        console.log(this.camera.position)
+    }
+
+    // When our context is built we can start coding 3D things.
+    onContextCreate = async ({ gl, scale: pixelRatio, width, height }) => {
+        // This will allow ARKit to collect Horizontal surfaces
+        AR.setPlaneDetection(AR.PlaneDetectionTypes.Horizontal);
+
+        // Create a 3D renderer
+        this.renderer = new ExpoTHREE.Renderer({
+            gl,
+            pixelRatio,
+            width,
+            height,
+        });
+
+        // We will add all of our meshes to this scene.
+        this.scene = new THREE.Scene();
+        // This will create a camera texture and use it as the background for our scene
+        this.scene.background = new ThreeAR.BackgroundTexture(this.renderer);
+        // Now we make a camera that matches the device orientation.
+        // Ex: When we look down this camera will rotate to look down too!
+        this.camera = new ThreeAR.Camera(width, height, 0.01, 1000);
+        // Make a cube - notice that each unit is 1 meter in real life, we will make our box 0.1 meters
+        const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+        // Simple color material
+        const material = new THREE.MeshPhongMaterial({
+            color: this.randomColor()
+        })
+
+        // Combine our geometry and material
+        this.cube = new THREE.Mesh(geometry, material);
+        // Place the box 0.4 meters in front of us.
+        this.cube.position.z = -0.4
+        // Add the cube to the scene
+        this.scene.add(this.cube);
+        // Setup a light so we can see the cube color
+        // AmbientLight colors all things in the scene equally.
+        this.scene.add(new THREE.AmbientLight(0xffffff));
+
+
+
+
+        this.questionGroup = new THREE.Group()
+        this.answerGroup = new THREE.Group()
+
+        const font = new THREE.Font( require( "../assets/helvetiker_regular.typeface.json" ) );
+        var textMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        var textGeometry = new THREE.TextGeometry('hey', {
+            font: font,
+            size: 0.01,
+            height: 0.001
+        });
+        var textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        textMesh.position.set(-0.1, 0.07, -0.3)
+        this.questionGroup.add(textMesh);
+        this.scene.add(this.questionGroup)
+    };
+
+    // When the phone rotates, or the view changes size, this method will be called.
+    onResize = ({ x, y, scale, width, height }) => {
+        // Let's stop the function if we haven't setup our scene yet
+        if (!this.renderer) {
+            return;
+        }
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setPixelRatio(scale);
+        this.renderer.setSize(width, height);
+    };
+
+    // Called every frame.
+    onRender = () => {
+        // Finally render the scene with the AR Camera
+        this.renderer.render(this.scene, this.camera);
+    };
+
+    randomColor = () => {
+        let allowed = "ABCDEF0123456789", S = "#";
+        while(S.length < 7){
+            S += allowed.charAt(Math.floor((Math.random()*16)+1));
+        }
+        return S;
+    }
+
+
+}
+*/
+/*
+<GraphicsView
+    style={{ flex: 1 }}
+    onContextCreate={this.onContextCreate}
+    onRender={this.onRender}
+    onResize={this.onResize}
+    isArEnabled
+    isArRunningStateEnabled
+    isArCameraStateEnabled
+    arTrackingConfiguration={AR.TrackingConfigurations.World}
+/>
+*/

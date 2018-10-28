@@ -25,19 +25,7 @@ HomeStack.navigationOptions = {
   ),
 };
 
-const LinksStack = createStackNavigator({
-  Links: LinksScreen,
-});
 
-LinksStack.navigationOptions = {
-  tabBarLabel: 'Cards',
-  tabBarIcon: ({ focused }) => (
-    <TabBarIcon
-      focused={focused}
-      name={Platform.OS === 'ios' ? `ios-link${focused ? '' : '-outline'}` : 'md-link'}
-    />
-  ),
-};
 
 const SettingsStack = createStackNavigator({
   Settings: SettingsScreen,
@@ -55,5 +43,5 @@ SettingsStack.navigationOptions = {
 
 export default createBottomTabNavigator({
   HomeStack,
-  LinksStack,
+  LinksScreen,
 });

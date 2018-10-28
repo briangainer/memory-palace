@@ -62,7 +62,7 @@ export default class App extends React.Component {
             />
                 <Button full disabled={this.state.cards.length === 0} onPress={this.placeCard}>
                     <Text>
-                        Place Card
+                        {this.state.cards.length > 0 ? this.state.cards[0].question : 'No cards left'} 
                     </Text>
                 </Button>
             </View>
@@ -91,9 +91,21 @@ export default class App extends React.Component {
         const textMesh = new THREE.Mesh(textGeometry, textMaterial);
         const pos = this.camera.getWorldPosition();
 
-        textMesh.position.set(pos.x - 0.04, pos.y , pos.z-0.4);
-        textMesh2.position.set(pos.x - 0.04, pos.y-0.6 , pos.z-0.4);
+        const geometry = new THREE.BoxGeometry(.25, .15, 0.02);
+        // Simple color material
+        const material = new THREE.MeshPhongMaterial({
+            color: 0xffffff
+        })
 
+        // Combine our geometry and material
+        const cube = new THREE.Mesh(geometry, material);
+        // Place the box 0.4 meters in front of us.
+        cube.position.set(pos.x, pos.y , pos.z-0.45)
+
+        textMesh.position.set(pos.x - 0.105, pos.y , pos.z-0.4);
+        textMesh2.position.set(pos.x - 0.105, pos.y-0.6 , pos.z-0.4);
+
+        this.scene.add(cube)
         this.scene.add(textMesh)
         this.scene.add(textMesh2)
     }

@@ -68,13 +68,13 @@ export default class ListThumbnailExample extends Component {
                 <Content>
                     <TextInput
                         placeholder={"Question"}
-                        style={{height: 40, borderColor: 'gray', borderWidth: 1}}
+                        style={{height: 40, paddingLeft: 10, borderColor: 'gray', borderWidth: 1}}
                         onChangeText={(question) => this.setState({question})}
                         value={this.state.question}
                     />
                     <TextInput
                         placeholder={"Answer"}
-                        style={{height: 40, borderColor: 'gray', borderWidth: 1}}
+                        style={{height: 40, paddingLeft: 10, borderColor: 'gray', borderWidth: 1}}
                         onChangeText={(answer) => this.setState({answer})}
                         value={this.state.answer}
                     />

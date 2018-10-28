@@ -33,7 +33,6 @@ export default class App extends React.Component {
                     cities.push(temp);
                 })
                 this.setState({ cards: cities })
-
             });
     }
 
@@ -61,7 +60,7 @@ export default class App extends React.Component {
                 isArCameraStateEnabled
                 arTrackingConfiguration={AR.TrackingConfigurations.World}
             />
-                <Button onPress={this.placeCard}>
+                <Button full disabled={this.state.cards.length === 0} onPress={this.placeCard}>
                     <Text>
                         Place Card
                     </Text>
@@ -71,18 +70,32 @@ export default class App extends React.Component {
     }
 
     placeCard = () => {
+        const qs = this.state.cards
+        const q = qs.shift()
+        this.setState({ cards: qs })
+
         const font = new THREE.Font( require( "../assets/helvetiker_regular.typeface.json" ) );
         const textMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-        const textGeometry = new THREE.TextGeometry('djhkdcjhwkcjhwe jkbdwkjb', {
+        const textGeometry = new THREE.TextGeometry(q.question, {
             font: font,
             size: 0.01,
             height: 0.001
         });
-        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        const pos = this.camera.getWorldPosition()
 
-        textMesh.position.set(pos.x, pos.y, pos.z)
+        const textGeometry2 = new THREE.TextGeometry(q.answer, {
+            font: font,
+            size: 0.01,
+            height: 0.001
+        });
+        const textMesh2 = new THREE.Mesh(textGeometry2, new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        const pos = this.camera.getWorldPosition();
+
+        textMesh.position.set(pos.x - 0.04, pos.y , pos.z-0.4);
+        textMesh2.position.set(pos.x - 0.04, pos.y-0.6 , pos.z-0.4);
+
         this.scene.add(textMesh)
+        this.scene.add(textMesh2)
     }
 
     // When our context is built we can start coding 3D things.
@@ -109,8 +122,6 @@ export default class App extends React.Component {
         // Setup a light so we can see the cube color
         // AmbientLight colors all things in the scene equally.
         this.scene.add(new THREE.AmbientLight(0xffffff));
-
-
     };
 
     // When the phone rotates, or the view changes size, this method will be called.
